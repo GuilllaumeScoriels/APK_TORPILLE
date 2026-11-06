@@ -1,0 +1,6 @@
+Correctif appliqué pour les messages vocaux :
+
+- l'upload audio n'essaie plus de relire immédiatement le fichier via downloadUrl après l'envoi ;
+- le message Firestore est écrit directement après l'upload réussi avec audioPath + audioBucket ;
+- audioUrl n'est ajouté que s'il est réellement disponible ;
+- cela évite qu'un refus de lecture Storage juste après l'upload bloque la création du message dans le fil.

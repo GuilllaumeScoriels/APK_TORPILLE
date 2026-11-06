@@ -1,0 +1,9 @@
+Correctif appliqué :
+- les éléments envoyés dans le fil d'une communauté sont maintenant affichés dans une bulle ovale,
+- la photo de profil reste à gauche,
+- l'heure reste à droite,
+- la hauteur verticale de chaque ligne reste compacte,
+- la configuration fonctionnelle actuelle du chat n'a pas été modifiée.
+
+Fichier modifié :
+- app/src/main/java/com/torpille/app/ui/screens/CommunityScreen.kt

@@ -1,0 +1,954 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Developer-managed home announcements. Console/Admin access uses IAM.
+    match /appAnnouncements/{announcementId} {
+      allow read: if request.auth != null && resource.data.published == true;
+      allow write: if false;
+    }
+
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedEmail() {
+      return isSignedIn()
+        && request.auth.token.email_verified == true;
+    }
+
+    function canUseVerifiedProfile() {
+      return isVerifiedEmail()
+        && hasCompleteProfile();
+    }
+
+    function myUid() {
+      return request.auth.uid;
+    }
+
+    function myProfilePath() {
+      return /databases/$(database)/documents/users/$(myUid());
+    }
+
+    function userProfilePath(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+
+    function myProfileExists() {
+      return isSignedIn() && exists(myProfilePath());
+    }
+
+    function myProfile() {
+      return get(myProfilePath()).data;
+    }
+
+    function hasCompleteProfile() {
+      return myProfileExists()
+        && ("firstName" in myProfile())
+        && myProfile().firstName is string
+        && myProfile().firstName.size() > 0
+        && ("lastName" in myProfile())
+        && myProfile().lastName is string
+        && myProfile().lastName.size() > 0
+        && ("pseudo" in myProfile())
+        && myProfile().pseudo is string
+        && myProfile().pseudo.size() >= 3
+        && (
+          (("photoUrl" in myProfile()) && myProfile().photoUrl is string && myProfile().photoUrl.size() > 0)
+          || (("profileIcon" in myProfile()) && myProfile().profileIcon is string && myProfile().profileIcon.size() > 0)
+        )
+        && ("termsAcceptedAt" in myProfile())
+        && myProfile().termsAcceptedAt is timestamp
+        && ("moderationRulesAcceptedAt" in myProfile())
+        && myProfile().moderationRulesAcceptedAt is timestamp;
+    }
+
+    function myPseudoKeyOrNull() {
+      return myProfileExists()
+        && ("pseudoKey" in myProfile())
+        && (myProfile().pseudoKey is string)
+        && myProfile().pseudoKey.size() > 0
+        ? myProfile().pseudoKey
+        : null;
+    }
+
+    function communityPath(communityId) {
+      return /databases/$(database)/documents/communities/$(communityId);
+    }
+
+    function communityExists(communityId) {
+      return exists(communityPath(communityId));
+    }
+
+    function communityDoc(communityId) {
+      return get(communityPath(communityId));
+    }
+
+    function communityData(communityId) {
+      return communityDoc(communityId).data;
+    }
+
+    function torpillePath(communityId, torpilleId) {
+      return /databases/$(database)/documents/communities/$(communityId)/torpilles/$(torpilleId);
+    }
+
+    function savedMessagePath(communityId, messageId) {
+      return /databases/$(database)/documents/communities/$(communityId)/savedMessages/$(messageId);
+    }
+
+    function isCommunityAdmin(communityId) {
+      return isSignedIn()
+        && communityExists(communityId)
+        && (!("deletionInProgress" in communityData(communityId)) || communityData(communityId).deletionInProgress != true)
+        && myUid() == communityData(communityId).adminUid;
+    }
+
+    function isCommunityPublic(communityId) {
+      return communityExists(communityId)
+        && (!("deletionInProgress" in communityData(communityId)) || communityData(communityId).deletionInProgress != true)
+        && (
+          !("isPublic" in communityData(communityId))
+          || communityData(communityId).isPublic == true
+        );
+    }
+
+    function isInAllowlist(communityId) {
+      let pk = myPseudoKeyOrNull();
+      return pk != null
+        && exists(/databases/$(database)/documents/communities/$(communityId)/allowlist/$(pk));
+    }
+
+    function isMember(communityId) {
+      return isSignedIn()
+        && communityExists(communityId)
+        && (!("deletionInProgress" in communityData(communityId)) || communityData(communityId).deletionInProgress != true)
+        && exists(/databases/$(database)/documents/communities/$(communityId)/members/$(myUid()));
+    }
+
+    function isBannedFromCommunity(communityId) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/communities/$(communityId)/banned/$(myUid()));
+    }
+
+    function isCommunityParticipant(communityId) {
+      return isCommunityAdmin(communityId) || isMember(communityId);
+    }
+
+    function isMemberUid(communityId, uid) {
+      return uid is string
+        && exists(/databases/$(database)/documents/communities/$(communityId)/members/$(uid));
+    }
+
+    function isProfileCommunityMember(communityId, uid) {
+      return uid is string
+        && exists(userProfilePath(uid))
+        && ("communityIds" in get(userProfilePath(uid)).data)
+        && get(userProfilePath(uid)).data.communityIds is list
+        && communityId in get(userProfilePath(uid)).data.communityIds;
+    }
+
+    function isStringOrNull(fieldName) {
+      return !(fieldName in request.resource.data)
+        || request.resource.data[fieldName] == null
+        || request.resource.data[fieldName] is string;
+    }
+
+    function isNumberOrNull(fieldName) {
+      return !(fieldName in request.resource.data)
+        || request.resource.data[fieldName] == null
+        || request.resource.data[fieldName] is number;
+    }
+
+    function isBoolOrNull(fieldName) {
+      return !(fieldName in request.resource.data)
+        || request.resource.data[fieldName] == null
+        || request.resource.data[fieldName] is bool;
+    }
+
+    function isTimestampOrNull(fieldName) {
+      return !(fieldName in request.resource.data)
+        || request.resource.data[fieldName] == null
+        || request.resource.data[fieldName] is timestamp;
+    }
+
+    function isValidPinnedCommunityIds(data) {
+      return !("pinnedCommunityIds" in data)
+        || (
+          data.pinnedCommunityIds is list
+          && data.pinnedCommunityIds.size() <= 3
+          && (data.pinnedCommunityIds.size() < 1 || data.pinnedCommunityIds[0] is string)
+          && (data.pinnedCommunityIds.size() < 2 || data.pinnedCommunityIds[1] is string)
+          && (data.pinnedCommunityIds.size() < 3 || data.pinnedCommunityIds[2] is string)
+        );
+    }
+
+    function isValidCommunityXP(data) {
+      return !("communityXP" in data)
+        || data.communityXP is map;
+    }
+
+    function isValidCommunityIds(data) {
+      return !("communityIds" in data)
+        || (
+          data.communityIds is list
+          && (data.communityIds.size() < 1 || data.communityIds[0] is string)
+          && (data.communityIds.size() < 2 || data.communityIds[1] is string)
+          && (data.communityIds.size() < 3 || data.communityIds[2] is string)
+          && (data.communityIds.size() < 4 || data.communityIds[3] is string)
+          && (data.communityIds.size() < 5 || data.communityIds[4] is string)
+          && (data.communityIds.size() < 6 || data.communityIds[5] is string)
+          && (data.communityIds.size() < 7 || data.communityIds[6] is string)
+          && (data.communityIds.size() < 8 || data.communityIds[7] is string)
+          && (data.communityIds.size() < 9 || data.communityIds[8] is string)
+          && (data.communityIds.size() < 10 || data.communityIds[9] is string)
+          && (data.communityIds.size() < 11 || data.communityIds[10] is string)
+          && (data.communityIds.size() < 12 || data.communityIds[11] is string)
+          && (data.communityIds.size() < 13 || data.communityIds[12] is string)
+          && (data.communityIds.size() < 14 || data.communityIds[13] is string)
+          && (data.communityIds.size() < 15 || data.communityIds[14] is string)
+          && (data.communityIds.size() < 16 || data.communityIds[15] is string)
+          && (data.communityIds.size() < 17 || data.communityIds[16] is string)
+          && (data.communityIds.size() < 18 || data.communityIds[17] is string)
+          && (data.communityIds.size() < 19 || data.communityIds[18] is string)
+          && (data.communityIds.size() < 20 || data.communityIds[19] is string)
+        );
+    }
+
+    function isValidFcmTokens(data) {
+      return !("fcmTokens" in data)
+        || (
+          data.fcmTokens is list
+          && data.fcmTokens.size() <= 10
+          && (data.fcmTokens.size() < 1 || data.fcmTokens[0] is string)
+          && (data.fcmTokens.size() < 2 || data.fcmTokens[1] is string)
+          && (data.fcmTokens.size() < 3 || data.fcmTokens[2] is string)
+          && (data.fcmTokens.size() < 4 || data.fcmTokens[3] is string)
+          && (data.fcmTokens.size() < 5 || data.fcmTokens[4] is string)
+          && (data.fcmTokens.size() < 6 || data.fcmTokens[5] is string)
+          && (data.fcmTokens.size() < 7 || data.fcmTokens[6] is string)
+          && (data.fcmTokens.size() < 8 || data.fcmTokens[7] is string)
+          && (data.fcmTokens.size() < 9 || data.fcmTokens[8] is string)
+          && (data.fcmTokens.size() < 10 || data.fcmTokens[9] is string)
+        );
+    }
+
+    function userAllowedKeys() {
+      return [
+        "uid",
+        "email",
+        "firstName",
+        "lastName",
+        "pseudo",
+        "pseudoKey",
+        "profileIcon",
+        "photoUrl",
+        "communityIds",
+        "pinnedCommunityIds",
+        "communityXP",
+        "xptotal",
+        "xpTotal",
+        "fcmToken",
+        "fcmTokens",
+        "languageCode",
+        "isLanguagePublic",
+        "isLeaderboardPublic",
+        "isGhostMode",
+        "friendsCount",
+        "birthDate",
+        "sex",
+        "city",
+        "bio",
+        "termsAcceptedAt",
+        "moderationRulesAcceptedAt",
+        "createdAt",
+        "updatedAt",
+        "lastLatitude",
+        "lastLongitude",
+        "lastLocationUpdatedAt"
+      ];
+    }
+
+    function memberCreateKeys() {
+      return [
+        "uid",
+        "pseudo",
+        "xpInCommunity",
+        "photoUrl",
+        "profileIcon"
+      ];
+    }
+
+    function isValidUserDocument(uid) {
+      return request.resource.data.uid == uid
+        && request.resource.data.keys().hasOnly(userAllowedKeys())
+        && request.resource.data.uid is string
+        && isStringOrNull("email")
+        && (
+          !("email" in request.resource.data)
+          || (
+            request.auth.token.email is string
+            && request.resource.data.email == request.auth.token.email
+          )
+        )
+        && isStringOrNull("firstName")
+        && isStringOrNull("lastName")
+        && isStringOrNull("pseudo")
+        && isStringOrNull("pseudoKey")
+        && isStringOrNull("profileIcon")
+        && isStringOrNull("photoUrl")
+        && isStringOrNull("fcmToken")
+        && isStringOrNull("languageCode")
+        && isBoolOrNull("isLanguagePublic")
+        && isBoolOrNull("isLeaderboardPublic")
+        && isBoolOrNull("isGhostMode")
+        && isNumberOrNull("friendsCount")
+        && isTimestampOrNull("birthDate")
+        && (!("sex" in request.resource.data)
+          || request.resource.data.sex == null
+          || request.resource.data.sex in ["male", "female", "non_binary"])
+        && isStringOrNull("city")
+        && isStringOrNull("bio")
+        && isTimestampOrNull("termsAcceptedAt")
+        && isTimestampOrNull("moderationRulesAcceptedAt")
+        && isValidFcmTokens(request.resource.data)
+        && isValidCommunityIds(request.resource.data)
+        && isValidPinnedCommunityIds(request.resource.data)
+        && isValidCommunityXP(request.resource.data)
+        && isNumberOrNull("xptotal")
+        && isNumberOrNull("xpTotal")
+        && isNumberOrNull("lastLatitude")
+        && isNumberOrNull("lastLongitude")
+        && isTimestampOrNull("lastLocationUpdatedAt")
+        && (
+          !("xptotal" in request.resource.data)
+          || !("xpTotal" in request.resource.data)
+          || request.resource.data.xptotal == request.resource.data.xpTotal
+        );
+    }
+
+    function isValidPseudoReservation() {
+      return request.resource.data.keys().hasOnly(["uid", "createdAt"])
+        && request.resource.data.uid == myUid();
+    }
+
+    function isValidCommunityCreate(communityId) {
+      return request.resource.data.id == communityId
+        && request.resource.data.adminUid == myUid()
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.isPublic is bool
+        && request.resource.data.responseTimeSeconds is number
+        && request.resource.data.responseTimeSeconds > 0
+        && (!("eliminationMode" in request.resource.data) || request.resource.data.eliminationMode is bool);
+    }
+
+    function isValidCommunityUpdate(communityId) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(["isPublic", "responseTimeSeconds", "eliminationMode"])
+        && request.resource.data.id == communityId
+        && request.resource.data.adminUid == resource.data.adminUid
+        && request.resource.data.name == resource.data.name
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.isPublic is bool
+        && request.resource.data.responseTimeSeconds is number
+        && request.resource.data.responseTimeSeconds > 0
+        && (!("eliminationMode" in request.resource.data) || request.resource.data.eliminationMode is bool);
+    }
+
+    function isValidCommunityAdminTransfer(communityId) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(["adminUid"])
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.name == resource.data.name
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.isPublic == resource.data.isPublic
+        && request.resource.data.responseTimeSeconds == resource.data.responseTimeSeconds
+        && request.resource.data.adminUid is string
+        && request.resource.data.adminUid != myUid()
+        && isMemberUid(communityId, request.resource.data.adminUid);
+    }
+
+    function isValidMemberCreate(uid) {
+      return request.resource.data.uid == uid
+        && request.resource.data.keys().hasOnly(memberCreateKeys())
+        && request.resource.data.pseudo is string
+        && request.resource.data.xpInCommunity is number
+        && request.resource.data.xpInCommunity == 0
+        && isStringOrNull("photoUrl")
+        && isStringOrNull("profileIcon");
+    }
+
+    function isValidMessageCreate(communityId, messageId) {
+      return isSignedIn()
+        && request.resource.data.senderUid == myUid()
+        && (
+          !("id" in request.resource.data)
+          || request.resource.data.id == null
+          || request.resource.data.id == messageId
+        )
+        && request.resource.data.type in ["text", "image", "video", "audio"]
+        && isStringOrNull("senderPseudo")
+        && isStringOrNull("text")
+        && isStringOrNull("imageUrl")
+        && isStringOrNull("imageBucket")
+        && isStringOrNull("imagePath")
+        && isStringOrNull("videoUrl")
+        && isStringOrNull("videoBucket")
+        && isStringOrNull("videoPath")
+        && isStringOrNull("audioUrl")
+        && isStringOrNull("audioBucket")
+        && isStringOrNull("audioPath")
+        && isStringOrNull("taggedUid")
+        && isStringOrNull("taggedPseudo")
+        && isStringOrNull("torpilleId")
+        && isStringOrNull("savedByUid")
+        && isStringOrNull("savedByPseudo")
+        && isStringOrNull("moderationStatus")
+        && isNumberOrNull("audioDurationSeconds")
+        && isNumberOrNull("tagX")
+        && isNumberOrNull("tagY")
+        && isNumberOrNull("reportCount")
+        && isTimestampOrNull("savedAt");
+    }
+
+    function isMessageSaved(resourceData) {
+      return ("savedAt" in resourceData) && resourceData.savedAt != null;
+    }
+
+    function isUnsavedExpiredMessage() {
+      return !isMessageSaved(resource.data)
+        && ("createdAt" in resource.data)
+        && resource.data.createdAt is timestamp
+        && request.time >= resource.data.createdAt + duration.value(14, "d");
+    }
+
+    function isValidMessageSaveUpdate(messageId) {
+      return isSignedIn()
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          "savedAt",
+          "savedByUid",
+          "savedByPseudo"
+        ])
+        && (!("savedAt" in resource.data) || resource.data.savedAt == null)
+        && request.resource.data.savedAt is timestamp
+        && request.resource.data.savedByUid == myUid()
+        && isStringOrNull("savedByPseudo")
+        && (
+          !("id" in request.resource.data)
+          || request.resource.data.id == null
+          || request.resource.data.id == messageId
+        );
+    }
+
+    function isValidSavedMessageWrite(messageId) {
+      return isSignedIn()
+        && request.resource.data.senderUid is string
+        && request.resource.data.type in ["text", "image", "video", "audio"]
+        && request.resource.data.savedByUid == myUid()
+        && request.resource.data.savedAt is timestamp
+        && (
+          !("id" in request.resource.data)
+          || request.resource.data.id == null
+          || request.resource.data.id == messageId
+        );
+    }
+
+    function isValidTorpilleCreate(communityId, torpilleId) {
+      return isSignedIn()
+        && !get(/databases/$(database)/documents/communities/$(communityId)).data.get("eliminationMode", false)
+        && request.resource.data.id == torpilleId
+        && request.resource.data.fromUid == myUid()
+        && request.resource.data.communityId == communityId
+        && isStringOrNull("fromPseudo")
+        && request.resource.data.toUid is string
+        && request.resource.data.toUid.size() > 0
+        && request.resource.data.toUid != myUid()
+        && exists(memberPath(communityId, request.resource.data.toUid))
+        && !exists(/databases/$(database)/documents/users/$(request.resource.data.toUid)/blockedUsers/$(myUid()))
+        && !exists(/databases/$(database)/documents/users/$(myUid())/blockedUsers/$(request.resource.data.toUid))
+        && isStringOrNull("videoBucket")
+        && isStringOrNull("videoPath")
+        && isStringOrNull("videoUrl")
+        && request.resource.data.taggedPseudo is string
+        && request.resource.data.taggedPseudo.size() > 0
+        && isNumberOrNull("tagX")
+        && isNumberOrNull("tagY")
+        && request.resource.data.responded is bool
+        && isStringOrNull("moderationStatus")
+        && isNumberOrNull("reportCount")
+        && (
+          !("penaltyApplied" in request.resource.data)
+          || request.resource.data.penaltyApplied is bool
+        );
+    }
+
+    function isValidNotificationPreference(uid, communityId) {
+      return request.auth.uid == uid
+        && request.resource.data.keys().hasOnly([
+          "communityId",
+          "communityName",
+          "mode",
+          "updatedAt"
+        ])
+        && request.resource.data.communityId == communityId
+        && request.resource.data.communityName is string
+        && request.resource.data.mode in ["all", "mentionsOnly"];
+    }
+
+    function isValidReelCreate(reelId) {
+      let communityId = request.resource.data.communityId;
+      let sourceMessageId = request.resource.data.sourceMessageId;
+      return request.resource.data.keys().hasOnly([
+          "id",
+          "torpilleId",
+          "sourceMessageId",
+          "communityId",
+          "communityName",
+          "authorUid",
+          "authorPseudo",
+          "videoUrl",
+          "videoBucket",
+          "videoPath",
+          "taggedPseudo",
+          "createdAt",
+          "publishedAt",
+          "moderationStatus",
+          "reportCount"
+        ])
+        && request.resource.data.id == reelId
+        && request.resource.data.torpilleId == reelId
+        && request.resource.data.authorUid == myUid()
+        && communityId is string
+        && sourceMessageId is string
+        && request.resource.data.communityName is string
+        && request.resource.data.authorPseudo is string
+        && isStringOrNull("videoUrl")
+        && isStringOrNull("videoBucket")
+        && isStringOrNull("videoPath")
+        && isStringOrNull("taggedPseudo")
+        && isTimestampOrNull("createdAt")
+        && isStringOrNull("moderationStatus")
+        && isNumberOrNull("reportCount")
+        && request.resource.data.publishedAt is timestamp
+        && exists(savedMessagePath(communityId, sourceMessageId))
+        && get(savedMessagePath(communityId, sourceMessageId)).data.torpilleId == reelId
+        && exists(torpillePath(communityId, reelId))
+        && get(torpillePath(communityId, reelId)).data.fromUid == myUid();
+    }
+
+    function isValidXPOnlyUserUpdate(uid) {
+      return request.resource.data.uid == uid
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          "xptotal",
+          "xpTotal",
+          "communityXP",
+          "communityIds",
+          "updatedAt"
+        ])
+        && isValidCommunityXP(request.resource.data)
+        && isValidCommunityIds(request.resource.data)
+        && isNumberOrNull("xptotal")
+        && isNumberOrNull("xpTotal")
+        && isTimestampOrNull("updatedAt")
+        && (
+          !("xptotal" in request.resource.data)
+          || !("xpTotal" in request.resource.data)
+          || request.resource.data.xptotal == request.resource.data.xpTotal
+        );
+    }
+
+    function isValidPinnedCommunitiesOnlyUpdate(uid) {
+      return request.resource.data.uid == uid
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          "pinnedCommunityIds",
+          "updatedAt"
+        ])
+        && isValidPinnedCommunityIds(request.resource.data)
+        && isTimestampOrNull("updatedAt");
+    }
+
+    function isValidCommunityIdsOnlyUpdate(uid) {
+      return request.resource.data.uid == uid
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          "communityIds",
+          "updatedAt"
+        ])
+        && isValidCommunityIds(request.resource.data)
+        && isTimestampOrNull("updatedAt");
+    }
+
+    function isValidPushTokensOnlyUpdate(uid) {
+      return request.resource.data.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "uid",
+          "fcmToken",
+          "fcmTokens",
+          "updatedAt"
+        ])
+        && isStringOrNull("fcmToken")
+        && isValidFcmTokens(request.resource.data)
+        && isTimestampOrNull("updatedAt");
+    }
+
+    function isValidGhostModeOnlyUpdate(uid) {
+      return request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          "isGhostMode",
+          "lastLatitude",
+          "lastLongitude",
+          "lastLocationUpdatedAt",
+          "updatedAt"
+        ])
+        && request.resource.data.isGhostMode is bool
+        && isNumberOrNull("lastLatitude")
+        && isNumberOrNull("lastLongitude")
+        && isTimestampOrNull("lastLocationUpdatedAt")
+        && isTimestampOrNull("updatedAt")
+        && (
+          !("uid" in request.resource.data)
+          || request.resource.data.uid == uid
+        );
+    }
+
+    function isValidLocationOnlyUserUpdate(uid) {
+      return request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          "lastLatitude",
+          "lastLongitude",
+          "lastLocationUpdatedAt",
+          "updatedAt"
+        ])
+        && request.resource.data.lastLatitude is number
+        && request.resource.data.lastLongitude is number
+        && request.resource.data.lastLocationUpdatedAt is timestamp
+        && isTimestampOrNull("updatedAt")
+        && (
+          !("uid" in request.resource.data)
+          || request.resource.data.uid == uid
+        );
+    }
+
+    // Phone visibility and lookup quotas are accessible only through App Check protected functions.
+    match /contactDiscovery/{uid} { allow read, write: if false; }
+    match /contactDiscoveryLimits/{uid} { allow read, write: if false; }
+
+    match /users/{uid} {
+      allow read: if isVerifiedEmail()
+        || (isSignedIn() && myUid() == uid);
+
+      allow create: if isSignedIn()
+        && myUid() == uid
+        && isValidUserDocument(uid);
+
+      allow update: if myUid() == uid
+        && (
+          // Check push-only writes before the full profile validation, which can
+          // exhaust Firestore's expression budget on existing complete profiles.
+          isValidPushTokensOnlyUpdate(uid)
+          || (isSignedIn() && isValidUserDocument(uid))
+          || isValidXPOnlyUserUpdate(uid)
+          || isValidCommunityIdsOnlyUpdate(uid)
+          || isValidPinnedCommunitiesOnlyUpdate(uid)
+          || isValidGhostModeOnlyUpdate(uid)
+          || isValidLocationOnlyUserUpdate(uid)
+        );
+
+      allow delete: if isSignedIn() && myUid() == uid;
+
+      match /notificationPreferences/{communityId} {
+        allow read: if isSignedIn() && myUid() == uid;
+        allow create, update: if canUseVerifiedProfile()
+          && myUid() == uid
+          && isValidNotificationPreference(uid, communityId);
+        allow delete: if isSignedIn() && myUid() == uid;
+      }
+
+      match /blockedUsers/{blockedUid} {
+        allow read: if isSignedIn() && myUid() == uid;
+        allow create, update: if canUseVerifiedProfile()
+          && myUid() == uid
+          && blockedUid != uid
+          && request.resource.data.blockedUid == blockedUid
+          && request.resource.data.keys().hasOnly([
+            "blockedUid",
+            "pseudo",
+            "photoUrl",
+            "profileIcon",
+            "createdAt"
+          ])
+          && isStringOrNull("pseudo")
+          && isStringOrNull("photoUrl")
+          && isStringOrNull("profileIcon")
+          && isTimestampOrNull("createdAt");
+        allow delete: if isSignedIn() && myUid() == uid;
+      }
+
+      match /blockedBy/{blockerUid} {
+        allow read: if isSignedIn() && myUid() == uid;
+        allow write: if false;
+      }
+
+      match /contentFilters/{communityId}/hiddenMembers/{hiddenUid} {
+        allow read: if isSignedIn() && myUid() == uid;
+        allow create, update: if canUseVerifiedProfile()
+          && myUid() == uid
+          && hiddenUid != uid
+          && request.resource.data.uid == hiddenUid
+          && request.resource.data.keys().hasOnly([
+            "uid",
+            "pseudo",
+            "photoUrl",
+            "profileIcon",
+            "createdAt"
+          ])
+          && isStringOrNull("pseudo")
+          && isStringOrNull("photoUrl")
+          && isStringOrNull("profileIcon")
+          && isTimestampOrNull("createdAt");
+        allow delete: if isSignedIn() && myUid() == uid;
+      }
+
+      match /friends/{friendUid} {
+        allow read: if canUseVerifiedProfile();
+        allow create, update: if canUseVerifiedProfile()
+          && (myUid() == uid || myUid() == friendUid)
+          && request.resource.data.uid == friendUid
+          && request.resource.data.keys().hasOnly([
+            "uid",
+            "pseudo",
+            "photoUrl",
+            "profileIcon",
+            "createdAt"
+          ])
+          && isStringOrNull("pseudo")
+          && isStringOrNull("photoUrl")
+          && isStringOrNull("profileIcon")
+          && isTimestampOrNull("createdAt");
+        allow delete: if isSignedIn()
+          && (myUid() == uid || myUid() == friendUid);
+      }
+    }
+
+    match /friendRequests/{requestId} {
+      allow read: if canUseVerifiedProfile()
+        && (resource.data.fromUid == myUid() || resource.data.toUid == myUid());
+      allow create: if canUseVerifiedProfile()
+        && request.resource.data.fromUid == myUid()
+        && request.resource.data.toUid is string
+        && request.resource.data.toUid != myUid()
+        && request.resource.data.status == "pending"
+        && request.resource.data.keys().hasOnly([
+          "fromUid",
+          "fromPseudo",
+          "fromPhotoUrl",
+          "fromProfileIcon",
+          "toUid",
+          "toPseudo",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ])
+        && isStringOrNull("fromPseudo")
+        && isStringOrNull("fromPhotoUrl")
+        && isStringOrNull("fromProfileIcon")
+        && isStringOrNull("toPseudo")
+        && isTimestampOrNull("createdAt")
+        && isTimestampOrNull("updatedAt");
+      allow update: if canUseVerifiedProfile()
+        && resource.data.toUid == myUid()
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          "status",
+          "updatedAt"
+        ])
+        && request.resource.data.status in ["accepted", "rejected"]
+        && isTimestampOrNull("updatedAt");
+      allow delete: if isSignedIn()
+        && (resource.data.fromUid == myUid() || resource.data.toUid == myUid());
+    }
+
+    match /friendRemovals/{removalId} {
+      allow read: if canUseVerifiedProfile()
+        && (resource.data.actorUid == myUid() || resource.data.toUid == myUid());
+      allow create: if canUseVerifiedProfile()
+        && request.resource.data.actorUid == myUid()
+        && request.resource.data.toUid is string
+        && request.resource.data.toUid != myUid()
+        && request.resource.data.type == "friendRemoved"
+        && request.resource.data.keys().hasOnly([
+          "actorUid",
+          "actorPseudo",
+          "toUid",
+          "type",
+          "createdAt"
+        ])
+        && isStringOrNull("actorPseudo")
+        && isTimestampOrNull("createdAt");
+      allow update: if false;
+      allow delete: if isSignedIn()
+        && (resource.data.actorUid == myUid() || resource.data.toUid == myUid());
+    }
+
+    match /pseudos/{pseudoKey} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && !exists(/databases/$(database)/documents/pseudos/$(pseudoKey))
+        && isValidPseudoReservation();
+
+      allow update: if false;
+      allow delete: if isSignedIn() && resource.data.uid == myUid();
+    }
+
+    match /reels/{reelId} {
+      allow read: if canUseVerifiedProfile();
+      allow create: if canUseVerifiedProfile()
+        && isValidReelCreate(reelId);
+      allow update: if false;
+      allow delete: if canUseVerifiedProfile()
+        && resource.data.authorUid == myUid();
+    }
+
+    match /reports/{reportId} {
+      allow read: if isSignedIn()
+        && resource.data.reporterUid == myUid();
+      allow create: if canUseVerifiedProfile()
+        && request.resource.data.reporterUid == myUid()
+        && request.resource.data.keys().hasOnly([
+          "reporterUid",
+          "communityId",
+          "contentId",
+          "contentType",
+          "authorUid",
+          "authorPseudo",
+          "reason",
+          "details",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ])
+        && request.resource.data.contentId is string
+        && request.resource.data.contentType in ["message", "torpille", "reel", "profile"]
+        && request.resource.data.reason in ["harassment", "sexualContent", "violenceThreat", "hateSpeech", "spam", "unwantedContent", "other"]
+        && request.resource.data.status == "open"
+        && isStringOrNull("communityId")
+        && isStringOrNull("authorUid")
+        && isStringOrNull("authorPseudo")
+        && isStringOrNull("details")
+        && (!("details" in request.resource.data) || request.resource.data.details.size() <= 1000)
+        && isTimestampOrNull("createdAt")
+        && isTimestampOrNull("updatedAt");
+      allow update, delete: if false;
+    }
+
+    match /communityJoinRequests/{requestId} {
+      allow read: if isSignedIn()
+        && (resource.data.requesterUid == myUid() || resource.data.adminUid == myUid());
+      allow create, update, delete: if false;
+    }
+
+    match /communities/{communityId} {
+      allow read: if canUseVerifiedProfile()
+        || (isSignedIn() && isCommunityParticipant(communityId));
+
+      allow create: if canUseVerifiedProfile()
+        && request.resource.data.adminUid == myUid()
+        && !("rankingSchedule" in request.resource.data);
+
+      allow update: if isSignedIn()
+        && isCommunityAdmin(communityId)
+        && (
+          isValidCommunityUpdate(communityId)
+          || isValidCommunityAdminTransfer(communityId)
+        );
+
+      allow delete: if isSignedIn() && isCommunityAdmin(communityId);
+
+      match /allowlist/{pseudoKey} {
+        allow read: if isSignedIn() && isCommunityAdmin(communityId);
+        allow create, update, delete: if isSignedIn() && isCommunityAdmin(communityId);
+      }
+
+      match /banned/{uid} {
+        allow read: if isSignedIn()
+          && (
+            isCommunityAdmin(communityId)
+            || myUid() == uid
+          );
+        allow create, update, delete: if isSignedIn() && isCommunityAdmin(communityId);
+      }
+
+      match /members/{uid} {
+        allow read: if canUseVerifiedProfile()
+          || (isSignedIn()
+            && (
+              myUid() == uid
+              || isCommunityParticipant(communityId)
+            ));
+
+        allow create: if canUseVerifiedProfile()
+          && (
+            (myUid() == uid && isCommunityPublic(communityId))
+            || isCommunityAdmin(communityId)
+            || (isCommunityParticipant(communityId) && isProfileCommunityMember(communityId, uid))
+          )
+          && !isBannedFromCommunity(communityId)
+          && isValidMemberCreate(uid);
+
+        allow update: if canUseVerifiedProfile()
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+            "xpInCommunity", "pendingTorpilleId", "pendingDeadlineAt", "pendingFromPseudo",
+            "lastTorpilledAt", "lastTorpilleSentAt", "lastRespondedAt", "overdueCount"
+          ])
+          && (
+            myUid() == uid
+            || isCommunityParticipant(communityId)
+            || isCommunityAdmin(communityId)
+          );
+
+        allow delete: if isSignedIn()
+          && (
+            myUid() == uid
+            || isCommunityAdmin(communityId)
+          );
+      }
+
+      match /messages/{messageId} {
+        allow read: if (canUseVerifiedProfile() && isCommunityParticipant(communityId))
+          || (isSignedIn() && isCommunityAdmin(communityId));
+        allow create: if canUseVerifiedProfile() && isValidMessageCreate(communityId, messageId);
+        allow update: if canUseVerifiedProfile()
+          && isCommunityParticipant(communityId)
+          && isValidMessageSaveUpdate(messageId);
+        allow delete: if (isSignedIn() && isCommunityAdmin(communityId))
+          || (canUseVerifiedProfile()
+            && isCommunityParticipant(communityId)
+            && isUnsavedExpiredMessage());
+      }
+
+      match /savedMessages/{messageId} {
+        allow read: if (canUseVerifiedProfile() && isCommunityParticipant(communityId))
+          || (isSignedIn() && isCommunityAdmin(communityId));
+        allow create, update: if canUseVerifiedProfile()
+          && isCommunityParticipant(communityId)
+          && isValidSavedMessageWrite(messageId);
+        allow delete: if isSignedIn() && isCommunityAdmin(communityId);
+      }
+
+      match /torpilles/{torpilleId} {
+        allow read: if (canUseVerifiedProfile() && isCommunityParticipant(communityId))
+          || (isSignedIn() && isCommunityAdmin(communityId));
+
+        // Torpilles and XP are server-authoritative, including outside-schedule replies.
+        allow create: if false;
+
+        allow update: if canUseVerifiedProfile()
+          && (
+            (resource.data.fromUid == myUid()
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                "isPublished", "publishedAt", "publishedByUid", "publishedByPseudo", "communityName"
+              ]))
+            || request.resource.data.diff(resource.data).affectedKeys().hasOnly(["moderationStatus", "reportCount"])
+          );
+
+        allow delete: if isSignedIn() && isCommunityAdmin(communityId);
+      }
+    }
+  }
+}

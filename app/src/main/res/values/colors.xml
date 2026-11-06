@@ -1,0 +1,13 @@
+<!--
+Rôle :
+- Palette de couleurs globale (ressources XML) utilisée par le thème Android/Compose.
+
+Pourquoi comme ça :
+- Même si Compose gère beaucoup en Kotlin, garder des couleurs de base en XML
+  est standard (icônes, thème, compat…).
+-->
+<resources>
+    <color name="torpille_orange">#FF9800</color>
+    <color name="torpille_red">#F44336</color>
+    <color name="torpille_green">#4CAF50</color>
+</resources>

@@ -1,0 +1,5 @@
+Correctif appliqué pour les messages vocaux :
+
+- l'upload audio n'essaie plus de récupérer une downloadUrl si Firebase Storage refuse la lecture des métadonnées ;
+- les erreurs Storage NOT_AUTHENTICATED / NOT_AUTHORIZED pendant la récupération d'URL sont ignorées pour ne pas bloquer la création du message Firestore ;
+- le document message audio est créé à partir de audioBucket + audioPath, ce qui permet au vocal d'apparaître dans le fil même sans audioUrl immédiate.

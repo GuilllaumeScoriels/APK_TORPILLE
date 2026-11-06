@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Invitation Torpille</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b1220;
+      --card: #121a2b;
+      --accent: #ffb703;
+      --accent-2: #3a86ff;
+      --text: #f8fafc;
+      --muted: #cbd5e1;
+      --border: rgba(255,255,255,0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: radial-gradient(circle at top, #17233f 0%, var(--bg) 55%);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      width: min(100%, 520px);
+      background: rgba(18, 26, 43, 0.94);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 28px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+      backdrop-filter: blur(10px);
+    }
+    .logo {
+      width: 68px;
+      height: 68px;
+      display: grid;
+      place-items: center;
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(255,183,3,0.18), rgba(58,134,255,0.18));
+      font-size: 34px;
+      margin-bottom: 20px;
+    }
+    h1 { margin: 0 0 8px; font-size: 28px; }
+    p { color: var(--muted); line-height: 1.5; }
+    .community {
+      margin: 18px 0;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      word-break: break-all;
+    }
+    .actions {
+      display: grid;
+      gap: 12px;
+      margin-top: 22px;
+    }
+    .button {
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      padding: 14px 18px;
+      border-radius: 14px;
+      text-decoration: none;
+      color: white;
+      font-weight: 700;
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+    .button:hover { transform: translateY(-1px); opacity: 0.96; }
+    .primary { background: linear-gradient(135deg, var(--accent), #fb8500); color: #1b1b1b; }
+    .secondary { background: linear-gradient(135deg, var(--accent-2), #8338ec); }
+    .ghost { background: rgba(255,255,255,0.06); border: 1px solid var(--border); }
+    .footer { margin-top: 16px; font-size: 13px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="logo">🎯</div>
+    <h1 id="page-heading">Rejoins ta communauté Torpille</h1>
+    <p id="page-description">Choisis ta plateforme pour installer l’application, puis ouvre à nouveau ce lien pour rejoindre directement la communauté.</p>
+    <div class="community">
+      <strong id="community-label">Identifiant communauté :</strong>
+      <div id="community-id">Chargement…</div>
+    </div>
+    <div class="actions">
+      <a id="android-link" class="button primary" href="https://torpille-android-38783.web.app/">Télécharger sur Android</a>
+      <a id="ios-link" class="button secondary" href="https://apps.apple.com/fr/app/torpille/id6761060711">Télécharger sur iPhone</a>
+      <a id="open-app-link" class="button ghost" href="#">Ouvrir dans l’app Torpille</a>
+    </div>
+    <div id="footer" class="footer">Torpille — rejoins ta communauté et commence à jouer.</div>
+  </main>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const communityId = params.get('cid') || '';
+    const supportedLanguages = ['fr', 'en', 'es', 'de', 'it', 'pt'];
+    const requestedLanguage = (params.get('lang') || navigator.language || 'fr').slice(0, 2).toLowerCase();
+    const language = supportedLanguages.includes(requestedLanguage) ? requestedLanguage : 'fr';
+    const translations = {
+      fr: {
+        title: 'Invitation Torpille',
+        heading: 'Rejoins ta communauté Torpille',
+        description: 'Choisis ta plateforme pour installer l’application, puis ouvre à nouveau ce lien pour rejoindre directement la communauté.',
+        communityLabel: 'Identifiant communauté :',
+        loading: 'Chargement…',
+        missing: 'Aucun identifiant transmis.',
+        android: 'Télécharger sur Android',
+        ios: 'Télécharger sur iPhone',
+        open: 'Ouvrir dans l’app Torpille',
+        footer: 'Torpille — rejoins ta communauté et commence à jouer.'
+      },
+      en: {
+        title: 'Torpille invitation',
+        heading: 'Join your Torpille community',
+        description: 'Choose your platform to install the app, then open this link again to join the community directly.',
+        communityLabel: 'Community ID:',
+        loading: 'Loading…',
+        missing: 'No community ID was provided.',
+        android: 'Download for Android',
+        ios: 'Download for iPhone',
+        open: 'Open in the Torpille app',
+        footer: 'Torpille — join your community and start playing.'
+      },
+      es: {
+        title: 'Invitación de Torpille',
+        heading: 'Únete a tu comunidad Torpille',
+        description: 'Elige tu plataforma para instalar la aplicación y vuelve a abrir este enlace para unirte directamente a la comunidad.',
+        communityLabel: 'ID de la comunidad:',
+        loading: 'Cargando…',
+        missing: 'No se proporcionó ningún ID de comunidad.',
+        android: 'Descargar para Android',
+        ios: 'Descargar para iPhone',
+        open: 'Abrir en la app Torpille',
+        footer: 'Torpille — únete a tu comunidad y empieza a jugar.'
+      },
+      de: {
+        title: 'Torpille-Einladung',
+        heading: 'Tritt deiner Torpille-Community bei',
+        description: 'Wähle deine Plattform, installiere die App und öffne diesen Link erneut, um der Community direkt beizutreten.',
+        communityLabel: 'Community-ID:',
+        loading: 'Wird geladen…',
+        missing: 'Keine Community-ID übermittelt.',
+        android: 'Für Android herunterladen',
+        ios: 'Für iPhone herunterladen',
+        open: 'In der Torpille-App öffnen',
+        footer: 'Torpille — tritt deiner Community bei und spiele los.'
+      },
+      it: {
+        title: 'Invito Torpille',
+        heading: 'Unisciti alla tua community Torpille',
+        description: 'Scegli la piattaforma per installare l’app, quindi riapri questo link per entrare direttamente nella community.',
+        communityLabel: 'ID della community:',
+        loading: 'Caricamento…',
+        missing: 'Nessun ID della community fornito.',
+        android: 'Scarica per Android',
+        ios: 'Scarica per iPhone',
+        open: 'Apri nell’app Torpille',
+        footer: 'Torpille — unisciti alla community e inizia a giocare.'
+      },
+      pt: {
+        title: 'Convite Torpille',
+        heading: 'Entre na sua comunidade Torpille',
+        description: 'Escolha sua plataforma para instalar o app e abra este link novamente para entrar diretamente na comunidade.',
+        communityLabel: 'ID da comunidade:',
+        loading: 'Carregando…',
+        missing: 'Nenhum ID de comunidade foi informado.',
+        android: 'Baixar para Android',
+        ios: 'Baixar para iPhone',
+        open: 'Abrir no app Torpille',
+        footer: 'Torpille — entre na sua comunidade e comece a jogar.'
+      }
+    };
+    const copy = translations[language];
+    const androidDownloadUrl = new URL('https://torpille-android-38783.web.app/');
+    if (communityId) androidDownloadUrl.searchParams.set('cid', communityId);
+    androidDownloadUrl.searchParams.set('lang', language);
+    document.getElementById('android-link').href = androidDownloadUrl.toString();
+    const communityNode = document.getElementById('community-id');
+    const openAppLink = document.getElementById('open-app-link');
+
+    document.documentElement.lang = language;
+    document.title = copy.title;
+    document.getElementById('page-heading').textContent = copy.heading;
+    document.getElementById('page-description').textContent = copy.description;
+    document.getElementById('community-label').textContent = copy.communityLabel;
+    document.getElementById('android-link').textContent = copy.android;
+    document.getElementById('ios-link').textContent = copy.ios;
+    openAppLink.textContent = copy.open;
+    document.getElementById('footer').textContent = copy.footer;
+    communityNode.textContent = copy.loading;
+
+    if (communityId) {
+      communityNode.textContent = communityId;
+      openAppLink.href = `torpille://join?cid=${encodeURIComponent(communityId)}`;
+    } else {
+      communityNode.textContent = copy.missing;
+      openAppLink.href = 'torpille://';
+    }
+  </script>
+</body>
+</html>

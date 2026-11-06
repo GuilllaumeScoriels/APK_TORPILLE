@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Rôle :
+- Règles Auto Backup : indique à Android quelles données peuvent être sauvegardées/restaurées.
+
+Pourquoi comme ça :
+- Utile si tu veux contrôler ce qui migre lors d’un changement de téléphone.
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="device_legal_acceptance.xml" />
+</full-backup-content>

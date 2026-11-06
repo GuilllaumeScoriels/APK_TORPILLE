@@ -1,0 +1,14 @@
+Correctif appliqué :
+- l'écran "Modifier le profil" autorise désormais l'enregistrement si seul le pseudo change,
+- ou si seule la photo change,
+- ou si les deux changent.
+
+Correctifs inclus :
+- sélection d'une photo depuis la galerie,
+- upload Firebase Storage dans profiles/{uid}/...,
+- enregistrement de photoUrl dans Firestore,
+- propagation du pseudo/photo vers les documents members des communautés,
+- retour automatique à l'écran profil après modification depuis l'onglet Profil.
+
+Règles mises à jour :
+- storage.rules autorise explicitement l'utilisateur connecté à écrire dans profiles/{uid}/...

@@ -1,0 +1,11 @@
+{
+  "version": "2.1.1",
+  "versionCode": 13,
+  "package": "com.torpille.app",
+  "minimumAndroid": "8.0",
+  "apkUrl": "/downloads/Torpille-Android-2.1.1.apk",
+  "sha256": "3664d293283fec49ca483607453fdb68e19cb44611ad186511ecdd34d6564f6d",
+  "sizeBytes": 27879081,
+  "distribution": "direct-test-apk",
+  "signingCertificateSHA256": "BB:7E:0E:9F:17:55:B5:60:59:69:3A:55:FF:B5:A4:73:38:BF:CA:BA:6C:25:34:4F:E1:E4:A7:D2:8A:AF:C0:D1"
+}
