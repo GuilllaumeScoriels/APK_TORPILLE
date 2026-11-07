@@ -1,61 +1,61 @@
 # TORPILLE · Android
 
-Application sociale Android en **Kotlin et Jetpack Compose** : communautés, messagerie multimédia, géolocalisation et classements.
+A social application built with **Kotlin and Jetpack Compose**, featuring communities, multimedia messaging, location sharing, and leaderboards.
 
-[Version iOS](https://github.com/GuilllaumeScoriels/TORPILLE-iOS) · [Téléchargement Android](https://torpille-android-38783.web.app/)
+[iOS version](https://github.com/GuilllaumeScoriels/TORPILLE-iOS) · [Android download](https://torpille-android-38783.web.app/)
 
-## Fonctionnalités
+## Features
 
-- Inscription, connexion et gestion du profil.
-- Communautés, invitations et demandes d’adhésion.
-- Discussions texte, photo, audio et vidéo ; envoi et réponse aux torpilles.
-- Amis, blocage, signalements et paramètres de confidentialité.
-- Carte des membres, mode fantôme et localisation à la demande.
-- Notifications, classements, XP et interface multilingue.
+- Sign up, sign in, and manage your profile.
+- Create communities, share invitations, and manage membership requests.
+- Exchange text, photos, audio, and video; send and reply to torpilles.
+- Manage friends, blocking, reports, and privacy settings.
+- View members on a map, use ghost mode, and share location on demand.
+- Notifications, leaderboards, XP, and a multilingual interface.
 
-## Technologies et structure
+## Technologies and structure
 
 **Kotlin · Jetpack Compose · Firebase Authentication · Firestore · Storage · Cloud Functions · Google Maps**
 
-| Dossier ou fichier | Rôle |
+| Directory or file | Purpose |
 | --- | --- |
-| `app/` | Application Android |
+| `app/` | Android application |
 | `functions/` | Cloud Functions |
-| `invitation-hosting/` | Hébergement des invitations |
-| `android-download/` | Page de téléchargement Android |
-| `firestore.rules`, `firestore.indexes.json` | Règles et index Firestore |
-| `storage.rules` | Règles Firebase Storage |
+| `invitation-hosting/` | Invitation hosting |
+| `android-download/` | Android download page |
+| `firestore.rules`, `firestore.indexes.json` | Firestore rules and indexes |
+| `storage.rules` | Firebase Storage rules |
 
-## Installation
+## Getting started
 
-Prérequis : Android Studio, Java 17 et Android SDK 35. Utiliser le wrapper Gradle fourni.
+Requirements: Android Studio, Java 17, and Android SDK 35. Use the Gradle wrapper included in this repository.
 
-1. Cloner le dépôt.
-2. Ajouter votre configuration Firebase dans `app/google-services.json`.
-3. Configurer le SDK et la clé Maps dans `local.properties`, ignoré par Git :
+1. Clone the repository.
+2. Add your Firebase configuration to `app/google-services.json`.
+3. Configure the SDK and Maps key in `local.properties`, which is ignored by Git:
 
 ```properties
-sdk.dir=/chemin/vers/Android/sdk
-MAPS_API_KEY=VOTRE_CLE_MAPS_ANDROID
+sdk.dir=/path/to/Android/sdk
+MAPS_API_KEY=YOUR_ANDROID_MAPS_KEY
 ```
 
-Activer Maps SDK for Android et restreindre la clé au package `com.torpille.app` et à l’empreinte SHA-1 du certificat utilisé. La clé peut aussi être fournie par la variable d’environnement ou propriété Gradle `MAPS_API_KEY`. Les fichiers de signature, mots de passe et configurations locales restent hors du dépôt.
+Enable Maps SDK for Android and restrict the key to the `com.torpille.app` package and the SHA-1 fingerprint of the signing certificate. You can also provide the key through the `MAPS_API_KEY` environment variable or Gradle property. Keep signing files, passwords, and local configuration out of version control.
 
-## Compilation et vérifications
+## Build and checks
 
 ```sh
 ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
 ./gradlew :app:assembleRelease
 ```
 
-L’APK debug est généré dans `app/build/outputs/apk/debug/app-debug.apk`. La distribution release nécessite la signature et une configuration Firebase/App Check correspondant au certificat.
+The debug APK is generated at `app/build/outputs/apk/debug/app-debug.apk`. Release distribution requires signing and Firebase/App Check configuration matching the certificate.
 
-## Backend partagé avec iOS
+## Backend shared with iOS
 
-Les modèles de données, règles et fonctions Firebase doivent rester compatibles entre les deux applications. Les fonctions appelables utilisent `europe-west1`. Coordonner tout déploiement des règles, index et fonctions avec la version iOS.
+Firebase data models, rules, and functions must remain compatible across both applications. Callable functions use `europe-west1`. Coordinate all rule, index, and function deployments with the iOS version.
 
-En debug, App Check utilise le fournisseur de développement ; son enregistrement Firebase peut être nécessaire. En release, l’application utilise Play Integrity.
+Debug builds use the App Check debug provider, which may require registration in Firebase. Release builds use Play Integrity.
 
-## État et validation
+## Status and validation
 
-Version documentée : **2.1.0 — 25 octobre 2026**. La compilation seule ne valide pas la parité visuelle ni les échanges entre appareils. Consulter [PARITE_IOS.md](PARITE_IOS.md) pour le suivi de compatibilité. Les bilans référencés par les notes de version sont `verification/ANDROID_2_1_0.md` et `verification/validation.json` ; vérifier leur présence dans la version consultée.
+Documented version: **2.1.0 — October 25, 2026**. A successful build alone does not validate visual parity or cross-device interactions. See [PARITE_IOS.md](PARITE_IOS.md) for compatibility tracking. Release notes also reference `verification/ANDROID_2_1_0.md` and `verification/validation.json`; check their availability in the version you are viewing.
